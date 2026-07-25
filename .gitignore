@@ -8,6 +8,7 @@ __pycache__/
 htmlcov/
 build/
 dist/
+.vscode
 
 # Local/generated artifacts
 missing_camera_images.txt
