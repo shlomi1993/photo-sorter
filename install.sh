@@ -39,7 +39,7 @@ pip install -e .
 
 # Test installation
 echo "🧪 Testing installation..."
-python -c "from photo_sorting import extract_date_from_directory, MetadataReader, MetadataWriter, setup_logger; print('✓ All imports successful!')"
+python -c "import pyexiv2; from colorama import Fore, init; init(); from photo_sorting import extract_date_from_directory, MetadataReader, MetadataWriter, setup_logger; print(f'{Fore.GREEN}✓ pyexiv2, Colorama, and all package imports successful!')"
 
 # Test CLI command
 echo "🔧 Testing CLI command..."

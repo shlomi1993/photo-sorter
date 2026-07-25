@@ -23,10 +23,7 @@ explicit dates, filenames, or existing EXIF metadata.
 - Pillow
 - Mutagen
 - Colorama
-- Optional: `pyexiv2` for writing EXIF metadata to images
-
-Without `pyexiv2`, the tool can still read metadata with Pillow and update
-filesystem timestamps, but embedded EXIF updates are skipped.
+- `pyexiv2` for reading and writing EXIF metadata
 
 ## Installation
 

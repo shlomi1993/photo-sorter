@@ -1,17 +1,23 @@
 import os
 import re
 import sys
+
 from datetime import datetime
 from PIL import Image
 from PIL.ExifTags import TAGS
 
+
 def set_file_times(path, date):
-    """Set file created/modified times."""
+    """
+    Set file created/modified times.
+    """
     ts = date.timestamp()
     os.utime(path, (ts, ts))  # access, modified
 
 def set_exif_date(path, date):
-    """Update EXIF DateTimeOriginal and DateTime."""
+    """
+    Update EXIF DateTimeOriginal and DateTime.
+    """
     try:
         img = Image.open(path)
         exif = img.getexif()
