@@ -1,9 +1,9 @@
-# Photo Sorting
+# 📸 Photo Sorting
 
 A command-line tool for correcting photo and video dates from folder names,
 explicit dates, filenames, or existing EXIF metadata.
 
-## Features
+## ✨ Features
 
 - Process a directory or a single media file.
 - Read dates from event folders such as `2025.04.11 - Event Name`.
@@ -17,7 +17,7 @@ explicit dates, filenames, or existing EXIF metadata.
 - Optionally create backups before modifying files.
 - Handle Hebrew and other Unicode paths.
 
-## Requirements
+## 📋 Requirements
 
 - Python 3.8 or newer
 - Pillow
@@ -25,7 +25,7 @@ explicit dates, filenames, or existing EXIF metadata.
 - Colorama
 - `pyexiv2` for reading and writing EXIF metadata
 
-## Installation
+## 📦 Installation
 
 Clone the repository and run the installer:
 
@@ -44,7 +44,7 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
-## Usage
+## 🚀 Usage
 
 The positional argument can be an event directory or one supported media file:
 
@@ -105,7 +105,7 @@ photo-sorting "/path/to/photos" --reset
 photo-sorting "/path/to/photos" --by-name --backup-dir originals
 ```
 
-## Options
+## ⚙️ Options
 
 | Option | Description |
 | --- | --- |
@@ -118,13 +118,13 @@ photo-sorting "/path/to/photos" --by-name --backup-dir originals
 | `--backup-dir NAME` | Back up files before modifying them |
 | `--help`, `-h` | Show command help |
 
-## Supported media
+## 🎞️ Supported media
 
 The CLI discovers JPEG, PNG, TIFF, BMP, MP4, MOV, AVI, MKV, WMV, FLV, and
 WebM files. Metadata-writing support varies by format; filesystem timestamps
 provide the fallback.
 
-## Safety
+## 🛡️ Safety
 
 Run with `--dry-run` before processing a large collection:
 
@@ -135,7 +135,7 @@ photo-sorting "/path/to/photos" --by-name --dry-run
 Use `--backup-dir` when changing irreplaceable media. Cloud-synced folders may
 propagate timestamp and metadata changes to other devices.
 
-## Development
+## 🧪 Development
 
 Run the tests with:
 
@@ -143,6 +143,6 @@ Run the tests with:
 python -m pytest
 ```
 
-## License
+## 📄 License
 
 This project is licensed under the terms in [LICENSE](LICENSE).
