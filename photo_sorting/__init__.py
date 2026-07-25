@@ -1,8 +1,7 @@
 """
 Photo Sorting Tool
 
-A comprehensive tool for managing photo and video metadata to ensure
-consistent date information across different platforms and applications.
+A tool for managing photo and video metadata to ensure consistent date information across different platforms and apps.
 """
 
 __version__ = "1.0.0"
