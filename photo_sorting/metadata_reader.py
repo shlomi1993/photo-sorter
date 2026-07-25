@@ -1,36 +1,32 @@
 """
 Metadata reading module for extracting date information from images and videos.
 
-This module focuses on the most important dates: when photos were taken
-and file creation dates for cross-platform compatibility.
+This module focuses on the most important dates: when photos were taken and file creation dates for cross-platform compatibility.
 """
 
-import os
 import logging
+
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Union
 
+import pyexiv2
 from PIL import Image
 from mutagen import File as MutagenFile
 
-# Try to import pyexiv2, but gracefully handle if it's not available
-PYEXIV2_AVAILABLE = True
-try:
-    import pyexiv2
-except (ImportError, OSError) as e:
-    PYEXIV2_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning(f"pyexiv2 not available: {e}. Will use PIL fallback for metadata reading.")
 
 logger = logging.getLogger(__name__)
 
 
 class MetadataReader:
-    """Class for reading the most important date metadata from media files."""
+    """
+    Class for reading the most important date metadata from media files.
+    """
 
     def __init__(self):
-        """Initialize the metadata reader."""
+        """
+        Initialize the metadata reader.
+        """
         self.supported_image_formats = {'.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.webp'}
         self.supported_video_formats = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'}
 
@@ -38,24 +34,20 @@ class MetadataReader:
         """
         Read the most important date information from a media file.
 
-        Focuses on creation date and taken date as these are the most important
-        for photo organization and cross-platform compatibility.
+        Focuses on creation date and taken date as these are the most important for photo organization and
+        cross-platform compatibility.
 
         Args:
-            file_path: Path to the media file
+            file_path (Union[str, Path]): Path to the media file.
 
         Returns:
-            Dictionary containing important date fields:
+            Dict[str, Optional[datetime]]: Important date fields:
             - 'date_taken': When photo was actually taken (EXIF DateTimeOriginal)
             - 'file_created': File creation time (OS level)
             - 'file_modified': File modification time (OS level)
         """
         file_path = Path(file_path)
-        dates = {
-            'date_taken': None,
-            'file_created': None,
-            'file_modified': None
-        }
+        dates = {'date_taken': None, 'file_created': None, 'file_modified': None}
 
         if not file_path.exists():
             logger.error(f"File does not exist: {file_path}")
@@ -102,17 +94,18 @@ class MetadataReader:
         return dates
 
     def _read_date_taken(self, file_path: Path) -> Optional[datetime]:
-        """Read when the photo was actually taken (EXIF DateTimeOriginal)."""
+        """
+        Read when the photo was actually taken (EXIF DateTimeOriginal).
+        """
         # Try pyexiv2 first for better EXIF support
-        if PYEXIV2_AVAILABLE:
-            try:
-                with pyexiv2.Image(str(file_path)) as img:
-                    exif_data = img.read_exif()
-                    if 'Exif.Photo.DateTimeOriginal' in exif_data:
-                        date_str = exif_data['Exif.Photo.DateTimeOriginal']
-                        return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-            except Exception as e:
-                logger.debug(f"pyexiv2 failed for {file_path}: {e}")
+        try:
+            with pyexiv2.Image(str(file_path)) as img:
+                exif_data = img.read_exif()
+                if 'Exif.Photo.DateTimeOriginal' in exif_data:
+                    date_str = exif_data['Exif.Photo.DateTimeOriginal']
+                    return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
+        except Exception as e:
+            logger.debug(f"pyexiv2 failed for {file_path}: {e}")
 
         # Fallback to PIL
         try:
@@ -129,7 +122,9 @@ class MetadataReader:
         return None
 
     def _read_video_creation_date(self, file_path: Path) -> Optional[datetime]:
-        """Read video creation time."""
+        """
+        Read video creation time.
+        """
         try:
             file = MutagenFile(file_path)
             if file is None:
@@ -177,16 +172,12 @@ class MetadataReader:
         3. File modification time
 
         Args:
-            dates: Dictionary of dates as returned by read_dates()
+            dates (Dict[str, Optional[datetime]]): Dates returned by read_dates().
 
         Returns:
-            The best available date, or None if no dates found
+            Optional[datetime]: The best available date, or None if no dates are found.
         """
-        priority_order = [
-            'date_taken',
-            'file_created',
-            'file_modified'
-        ]
+        priority_order = ['date_taken', 'file_created', 'file_modified']
 
         for date_key in priority_order:
             if dates.get(date_key):

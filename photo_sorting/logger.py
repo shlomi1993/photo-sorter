@@ -8,37 +8,33 @@ file logging, and appropriate log levels for different components.
 import logging
 import logging.handlers
 import sys
+
+from colorama import Back, Fore, Style, init as colorama_init
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-try:
-    from colorama import init, Fore, Back, Style
-    init(autoreset=True)  # Auto-reset colors after each print
-    COLORAMA_AVAILABLE = True
-except ImportError:
-    COLORAMA_AVAILABLE = False
+
+colorama_init(autoreset=True)
 
 
 class ColoredFormatter(logging.Formatter):
-    """Custom formatter that adds colors to log messages."""
+    """
+    Custom formatter that adds colors to log messages.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        if COLORAMA_AVAILABLE:
-            self.colors = {
-                'DEBUG': Fore.CYAN,
-                'INFO': Fore.GREEN,
-                'WARNING': Fore.YELLOW,
-                'ERROR': Fore.RED,
-                'CRITICAL': Fore.RED + Back.WHITE + Style.BRIGHT
-            }
-        else:
-            self.colors = {}
+        self.colors = {
+            'DEBUG': Fore.CYAN,
+            'INFO': Fore.GREEN,
+            'WARNING': Fore.YELLOW,
+            'ERROR': Fore.RED,
+            'CRITICAL': Fore.RED + Back.WHITE + Style.BRIGHT
+        }
 
     def format(self, record):
-        if COLORAMA_AVAILABLE and record.levelname in self.colors:
+        if record.levelname in self.colors:
             # Add color to the level name
             colored_levelname = f"{self.colors[record.levelname]}{record.levelname}{Style.RESET_ALL}"
 
@@ -51,21 +47,19 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(name: str = "photo_sorting",
-                verbose: bool = False,
-                log_file: Optional[str] = None,
-                file_level: int = logging.DEBUG) -> logging.Logger:
+def setup_logger(name: str = "photo_sorting", verbose: bool = False, log_file: Optional[str] = None,
+                 file_level: int = logging.DEBUG) -> logging.Logger:
     """
     Set up a comprehensive logger for the application.
 
     Args:
-        name: Logger name
-        verbose: Enable verbose (DEBUG) logging to console
-        log_file: Path to log file (optional)
-        file_level: Log level for file output
+        name (str): Logger name.
+        verbose (bool): Whether to enable DEBUG logging on the console.
+        log_file (Optional[str]): Path to a log file, or None to disable file logging.
+        file_level (int): Log level for file output.
 
     Returns:
-        Configured logger instance
+        logging.Logger: The configured logger.
     """
     logger = logging.getLogger(name)
 
@@ -82,10 +76,7 @@ def setup_logger(name: str = "photo_sorting",
 
     # Console formatter with colors
     console_format = "%(asctime)s | %(levelname)-8s | %(message)s"
-    console_formatter = ColoredFormatter(
-        console_format,
-        datefmt="%H:%M:%S"
-    )
+    console_formatter = ColoredFormatter(console_format, datefmt="%H:%M:%S")
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
@@ -94,22 +85,14 @@ def setup_logger(name: str = "photo_sorting",
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_path,
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=5
-        )
+        file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=10 * 1024 * 1024, backupCount=5)
         file_handler.setLevel(file_level)
 
         # File formatter (no colors)
         file_format = "%(asctime)s | %(name)s | %(levelname)-8s | %(funcName)s:%(lineno)d | %(message)s"
-        file_formatter = logging.Formatter(
-            file_format,
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
+        file_formatter = logging.Formatter(file_format, datefmt="%Y-%m-%d %H:%M:%S")
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-
         logger.info(f"Logging to file: {log_path}")
 
     # Prevent propagation to root logger
@@ -119,7 +102,9 @@ def setup_logger(name: str = "photo_sorting",
 
 
 def create_session_log_file() -> str:
-    """Create a log file path for the current session."""
+    """
+    Create a log file path for the current session.
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = Path.home() / ".photo_sorting" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -127,7 +112,9 @@ def create_session_log_file() -> str:
 
 
 class LogContext:
-    """Context manager for temporarily changing log level."""
+    """
+    Context manager for temporarily changing log level.
+    """
 
     def __init__(self, logger: logging.Logger, level: int):
         self.logger = logger
@@ -145,7 +132,9 @@ class LogContext:
 
 def log_file_operation(logger: logging.Logger, operation: str, file_path: Path,
                       success: bool = True, details: str = None):
-    """Log a file operation with consistent formatting."""
+    """
+    Log a file operation with consistent formatting.
+    """
     status = "✓" if success else "✗"
     level = logging.INFO if success else logging.ERROR
 
@@ -158,13 +147,16 @@ def log_file_operation(logger: logging.Logger, operation: str, file_path: Path,
 
 def log_metadata_change(logger: logging.Logger, file_path: Path,
                        field: str, old_value, new_value):
-    """Log a metadata change with before/after values."""
+    """
+    Log a metadata change with before/after values.
+    """
     logger.info(f"Updated {file_path.name} | {field}: {old_value} -> {new_value}")
 
 
-def log_processing_summary(logger: logging.Logger, total_files: int,
-                          processed: int, modified: int, errors: int):
-    """Log a processing summary with statistics."""
+def log_processing_summary(logger: logging.Logger, total_files: int, processed: int, modified: int, errors: int):
+    """
+    Log a processing summary with statistics.
+    """
     logger.info("=" * 50)
     logger.info("PROCESSING SUMMARY")
     logger.info("=" * 50)
@@ -182,17 +174,23 @@ def log_processing_summary(logger: logging.Logger, total_files: int,
 
 # Pre-configured loggers for different modules
 def get_date_parser_logger(verbose: bool = False) -> logging.Logger:
-    """Get logger for date parsing operations."""
+    """
+    Get logger for date parsing operations.
+    """
     return setup_logger("photo_sorting.date_parser", verbose=verbose)
 
 
 def get_metadata_reader_logger(verbose: bool = False) -> logging.Logger:
-    """Get logger for metadata reading operations."""
+    """
+    Get logger for metadata reading operations.
+    """
     return setup_logger("photo_sorting.metadata_reader", verbose=verbose)
 
 
 def get_metadata_writer_logger(verbose: bool = False) -> logging.Logger:
-    """Get logger for metadata writing operations."""
+    """
+    Get logger for metadata writing operations.
+    """
     return setup_logger("photo_sorting.metadata_writer", verbose=verbose)
 
 
@@ -209,15 +207,12 @@ if __name__ == "__main__":
 
     # Test file operation logging
     test_path = Path("test_image.jpg")
-    log_file_operation(logger, "Reading metadata", test_path, success=True,
-                      details="Found EXIF data")
-    log_file_operation(logger, "Writing metadata", test_path, success=False,
-                      details="Permission denied")
+    log_file_operation(logger, "Reading metadata", test_path, success=True, details="Found EXIF data")
+    log_file_operation(logger, "Writing metadata", test_path, success=False, details="Permission denied")
 
     # Test metadata change logging
     log_metadata_change(logger, test_path, "DateTimeOriginal",
                        "2020:01:01 10:00:00", "2020:01:02 12:00:00")
 
     # Test summary logging
-    log_processing_summary(logger, total_files=100, processed=95,
-                          modified=45, errors=5)
+    log_processing_summary(logger, total_files=100, processed=95, modified=45, errors=5)

@@ -1,68 +1,62 @@
 """
 Metadata writing module for updating date information in images and videos.
 
-This module provides functionality to update various date fields in media files
-to ensure consistency across different platforms and applications.
+This module provides functionality to update various date fields in media files to ensure consistency across different
+platforms and applications.
 """
 
 import os
 import shutil
 import logging
+import pyexiv2
+
 from datetime import datetime, date
 from pathlib import Path
 from typing import Union, Optional, TYPE_CHECKING
-
 from mutagen import File as MutagenFile
 
 if TYPE_CHECKING:
     from .metadata_reader import MetadataReader
 
-# Try to import pyexiv2, but gracefully handle if it's not available
-PYEXIV2_AVAILABLE = True
-PYEXIV2_ERROR = None
-try:
-    import pyexiv2
-except (ImportError, OSError) as e:
-    PYEXIV2_AVAILABLE = False
-    PYEXIV2_ERROR = str(e)
 
 logger = logging.getLogger(__name__)
 
 
 class MetadataWriter:
-    """Class for writing date metadata to various media file types."""
+    """
+    Class for writing date metadata to various media file types.
+    """
 
     def __init__(self, dry_run: bool = False, backup: bool = False, backup_dir: Optional[str] = None):
         """
         Initialize the metadata writer.
 
         Args:
-            dry_run: If True, show what would be changed without making modifications
-            backup: If True, create backup files before modifying
-            backup_dir: Name of the backup directory to create/use (if None, no backups)
+            dry_run (bool): If True, show changes without modifying files.
+            backup (bool): If True, create backups before modifying files.
+            backup_dir (Optional[str]): Backup directory name, or None to disable backups.
         """
         self.dry_run = dry_run
         self.backup = backup
         self.backup_dir = backup_dir
         self.supported_image_formats = {'.jpg', '.jpeg', '.tiff', '.tif'}
         self.supported_video_formats = {'.mp4', '.mov', '.m4v'}
-
         if dry_run:
             logger.info("Running in DRY RUN mode - no files will be modified")
 
-    def update_dates(self, file_path: Union[str, Path], target_date: Union[date, datetime],
-                     preserve_time: bool = True, metadata_reader: Optional['MetadataReader'] = None) -> bool:
+    def update_dates(self, file_path: Union[str, Path], target_date: Union[date, datetime], preserve_time: bool = True,
+                     metadata_reader: Optional['MetadataReader'] = None) -> bool:
         """
         Update all relevant date fields in a media file.
 
         Args:
-            file_path: Path to the media file
-            target_date: Date to set (if date object, time will be set to noon unless preserve_time=True)
-            preserve_time: If True and metadata_reader provided, preserve existing time from file
-            metadata_reader: MetadataReader instance to read existing time from file
+            file_path (Union[str, Path]): Path to the media file.
+            target_date (Union[date, datetime]): Date or datetime to set.
+            preserve_time (bool): Whether to preserve an existing time when target_date is a date.
+            metadata_reader (Optional[MetadataReader]): Reader used to obtain an existing time, or None.
 
         Returns:
-            True if update was successful, False otherwise
+            bool: True if the update succeeds, otherwise False.
         """
         file_path = Path(file_path)
 
@@ -133,8 +127,8 @@ class MetadataWriter:
         Reset file creation and modification dates to match the original EXIF date taken from the photo.
 
         Args:
-            file_path: Path to the media file
-            metadata_reader: MetadataReader instance to read the original EXIF data
+            file_path (Union[str, Path]): Path to the media file.
+            metadata_reader (MetadataReader): Reader used to obtain the original EXIF date.
 
         Returns:
             bool: True if successful, False otherwise
@@ -183,7 +177,9 @@ class MetadataWriter:
             return False
 
     def _create_backup(self, file_path: Path) -> bool:
-        """Create a backup of the original file in the specified backup directory."""
+        """
+        Create a backup of the original file in the specified backup directory.
+        """
         try:
             # Use custom backup directory name if provided, otherwise use '.backup'
             backup_dir_name = self.backup_dir if self.backup_dir else '.backup'
@@ -206,41 +202,26 @@ class MetadataWriter:
             return False
 
     def _update_image_dates(self, file_path: Path, target_datetime: datetime) -> bool:
-        """Update date metadata in image files."""
+        """
+        Update date metadata in image files.
+        """
         success = False
 
         # Format datetime for EXIF (YYYY:MM:DD HH:MM:SS)
         exif_datetime_str = target_datetime.strftime("%Y:%m:%d %H:%M:%S")
 
-        # Try updating with pyexiv2 first (preferred method)
-        if PYEXIV2_AVAILABLE:
-            try:
-                success = self._update_with_pyexiv2(file_path, exif_datetime_str)
-                if success:
-                    logger.debug(f"Successfully updated EXIF data using pyexiv2 for {file_path.name}")
-                else:
-                    logger.warning(f"pyexiv2 failed to update EXIF data for {file_path.name}")
-            except Exception as e:
-                logger.warning(f"pyexiv2 update failed for {file_path.name}: {e}")
+        success = self._update_with_pyexiv2(file_path, exif_datetime_str)
+        if success:
+            logger.debug(f"Successfully updated EXIF data using pyexiv2 for {file_path.name}")
         else:
-            # Only show this warning once per session, not for every file
-            if not hasattr(self, '_pyexiv2_warning_shown'):
-                logger.warning(f"pyexiv2 not available ({PYEXIV2_ERROR}). EXIF metadata updates will be skipped.")
-                logger.info("To enable EXIF updates, install pyexiv2: pip install pyexiv2")
-                self._pyexiv2_warning_shown = True
-            logger.debug(f"Skipping EXIF update for {file_path.name} (pyexiv2 not available)")
-
-        # Note: We could try other methods like PIL for basic EXIF writing,
-        # but pyexiv2 is the most reliable for writing EXIF data while preserving image quality
-        # and supporting the full range of EXIF fields.
+            logger.warning(f"pyexiv2 failed to update EXIF data for {file_path.name}")
 
         return success
 
     def _update_with_pyexiv2(self, file_path: Path, exif_datetime_str: str) -> bool:
-        """Update image metadata using pyexiv2."""
-        if not PYEXIV2_AVAILABLE:
-            return False
-
+        """
+        Update image metadata using pyexiv2.
+        """
         try:
             with pyexiv2.Image(str(file_path)) as img:
                 # Read existing metadata to preserve non-date fields
@@ -340,10 +321,10 @@ class MetadataWriter:
         Restore a file from its backup in the specified backup directory.
 
         Args:
-            file_path: Path to the original file
+            file_path (Union[str, Path]): Path to the original file.
 
         Returns:
-            True if restore was successful, False otherwise
+            bool: True if the restore succeeds, otherwise False.
         """
         file_path = Path(file_path)
         backup_dir_name = self.backup_dir if self.backup_dir else '.backup'
@@ -368,11 +349,13 @@ class MetadataWriter:
         Remove the backup directory and all its contents.
 
         Args:
-            directory: Directory containing the backup folder to clean up
-            backup_dir_name: Name of the backup directory (if None, uses instance backup_dir or '.backup')
+            directory (Union[str, Path]): Directory containing the backup
+                folder.
+            backup_dir_name (Optional[str]): Backup directory name, or None to
+                use the configured name or ".backup".
 
         Returns:
-            Number of backup files removed
+            int: Number of backup files removed.
         """
         directory = Path(directory)
         if backup_dir_name is None:
@@ -404,7 +387,8 @@ class MetadataWriter:
         Get information about which metadata fields are supported on different platforms.
 
         Returns:
-            Dictionary with platform compatibility information
+            dict[str, Union[list[str], dict[str, str]]]: Platform compatibility
+                information.
         """
         return {
             "cross_platform_reliable": [
