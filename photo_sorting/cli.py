@@ -8,6 +8,7 @@ This module provides the command-line interface that gets installed as 'photo-so
 import argparse
 import sys
 import re
+
 from pathlib import Path
 from datetime import date, datetime
 from typing import Optional, Union
@@ -26,10 +27,10 @@ def extract_date_from_whatsapp_filename(filename: str) -> datetime:
     Extract date from WhatsApp filename format (IMG-YYYYMMDD-WA*).
 
     Args:
-        filename: The filename to parse
+        filename (str): The filename to parse.
 
     Returns:
-        datetime.date object if successful, None otherwise
+        Optional[date]: The extracted date, or None if parsing fails.
     """
     # Match WhatsApp pattern: IMG-YYYYMMDD-WA*
     match = re.match(r'IMG-(\d{4})(\d{2})(\d{2})-WA.*', filename)
@@ -53,21 +54,17 @@ def extract_date_from_filename(filename: str) -> Optional[Union[date, datetime]]
     - YYYYMMDD_HHMMSS (including duplicate suffixes such as ``(0)``)
 
     Args:
-        filename: The filename to parse
+        filename (str): The filename to parse.
 
     Returns:
-        datetime object when a time is present, date object when only a date is
-        present, or None if parsing fails
+        Optional[Union[date, datetime]]: A datetime when a time is present, a
+            date when only a date is present, or None if parsing fails.
     """
     # Remove file extension
     name_without_ext = filename.rsplit('.', 1)[0]
 
-    # Parse timestamps before date-only patterns, otherwise YYYYMMDD would match
-    # the date portion and discard the available time.
-    timestamp_match = re.search(
-        r'(?<!\d)(\d{8})[_-](\d{4}|\d{6})(?!\d)',
-        name_without_ext,
-    )
+    # Parse timestamps before date-only patterns, otherwise YYYYMMDD would match the date portion and discard the available time.
+    timestamp_match = re.search(r'(?<!\d)(\d{8})[_-](\d{4}|\d{6})(?!\d)', name_without_ext)
     if timestamp_match:
         date_part, time_part = timestamp_match.groups()
         timestamp_format = "%Y%m%d%H%M%S" if len(time_part) == 6 else "%Y%m%d%H%M"
@@ -112,10 +109,10 @@ def extract_date_from_filename(filename: str) -> Optional[Union[date, datetime]]
 
 
 def main():
-    """Main entry point for the photo sorting tool."""
-    parser = argparse.ArgumentParser(
-        description="Fix photo/video metadata dates based on directory naming convention"
-    )
+    """
+    Main entry point for the photo sorting tool.
+    """
+    parser = argparse.ArgumentParser(description="Fix photo/video metadata dates based on directory naming convention")
     parser.add_argument(
         "path",
         type=str,
@@ -233,8 +230,9 @@ def main():
         writer = MetadataWriter(dry_run=args.dry_run, backup=bool(args.backup_dir), backup_dir=args.backup_dir)
 
         # Process media files
-        media_extensions = {'.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp',
-                          '.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm'}
+        media_extensions = {
+            '.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm'
+        }
 
         if single_file:
             # Single file mode - check if it's a supported media file
