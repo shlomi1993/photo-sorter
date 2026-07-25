@@ -33,7 +33,7 @@ filesystem timestamps, but embedded EXIF updates are skipped.
 Clone the repository and run the installer:
 
 ```bash
-git clone https://github.com/shlomi1993/photo-sorting.git
+git clone https://github.com/shlomi1993/photo-sorter.git
 cd photo-sorting
 ./install.sh
 ```
