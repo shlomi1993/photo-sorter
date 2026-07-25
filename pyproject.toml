@@ -27,6 +27,7 @@ dependencies = [
     "Pillow>=9.0.0",
     "mutagen>=1.45.0",
     "colorama>=0.4.4",
+    "pyexiv2>=2.11.0",
 ]
 
 [project.optional-dependencies]

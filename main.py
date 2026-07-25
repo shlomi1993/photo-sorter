@@ -2,13 +2,14 @@
 """
 Main script for the Photo Sorting Tool.
 
-This script processes a directory of photos/videos and ensures their metadata
-dates match the expected date extracted from the directory name.
+This script processes a directory of photos/videos and ensures their metadata dates match the expected date extracted
+from the directory name.
 """
 
 import argparse
 import sys
 import re
+
 from pathlib import Path
 from datetime import datetime
 
@@ -26,10 +27,10 @@ def extract_date_from_whatsapp_filename(filename: str) -> datetime:
     Extract date from WhatsApp filename format (IMG-YYYYMMDD-WA*).
 
     Args:
-        filename: The filename to parse
+        filename (str): The filename to parse.
 
     Returns:
-        datetime.date object if successful, None otherwise
+        Optional[date]: The extracted date, or None if parsing fails.
     """
     # Match WhatsApp pattern: IMG-YYYYMMDD-WA*
     match = re.match(r'IMG-(\d{4})(\d{2})(\d{2})-WA.*', filename)
@@ -52,10 +53,10 @@ def extract_date_from_filename(filename: str) -> datetime:
     - IMG-YYYYMMDD-*, DSC_YYYYMMDD, etc.
 
     Args:
-        filename: The filename to parse
+        filename (str): The filename to parse.
 
     Returns:
-        datetime.date object if successful, None otherwise
+        Optional[date]: The extracted date, or None if parsing fails.
     """
     # Remove file extension
     name_without_ext = filename.rsplit('.', 1)[0]
@@ -99,7 +100,9 @@ def extract_date_from_filename(filename: str) -> datetime:
 
 
 def main():
-    """Main entry point for the photo sorting tool."""
+    """
+    Main entry point for the photo sorting tool.
+    """
     parser = argparse.ArgumentParser(
         description="Fix photo/video metadata dates based on directory naming convention"
     )

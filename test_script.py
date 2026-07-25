@@ -14,7 +14,9 @@ from photo_sorting import extract_date_from_directory, MetadataReader, MetadataW
 
 
 def create_sample_image(file_path: Path, width: int = 100, height: int = 100):
-    """Create a simple test image file."""
+    """
+    Create a simple test image file.
+    """
     from PIL import Image
 
     # Create a simple test image
@@ -24,7 +26,9 @@ def create_sample_image(file_path: Path, width: int = 100, height: int = 100):
 
 
 def test_date_parsing():
-    """Test the date parsing functionality."""
+    """
+    Test the date parsing functionality.
+    """
     print("\n=== Testing Date Parsing ===")
 
     test_cases = [
@@ -43,7 +47,9 @@ def test_date_parsing():
 
 
 def test_metadata_operations():
-    """Test metadata reading and writing operations."""
+    """
+    Test metadata reading and writing operations.
+    """
     print("\n=== Testing Metadata Operations ===")
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -90,7 +96,9 @@ def test_metadata_operations():
 
 
 def test_main_workflow():
-    """Test the main workflow with a realistic scenario."""
+    """
+    Test the main workflow with a realistic scenario.
+    """
     print("\n=== Testing Main Workflow ===")
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -167,7 +175,9 @@ def test_main_workflow():
 
 
 def main():
-    """Run all tests."""
+    """
+    Run all tests.
+    """
     print("Photo Sorting Tool - Test Script")
     print("=" * 40)
 
