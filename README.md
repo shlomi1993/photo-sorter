@@ -24,6 +24,7 @@ explicit dates, filenames, or existing EXIF metadata.
 - Mutagen
 - Colorama
 - `pyexiv2` for reading and writing EXIF metadata
+- ExifTool for safe, verified HEIC metadata updates (`brew install exiftool` on macOS)
 
 ## 📦 Installation
 
@@ -120,9 +121,14 @@ photo-sorting "/path/to/photos" --by-name --backup-dir originals
 
 ## 🎞️ Supported media
 
-The CLI discovers JPEG, PNG, TIFF, BMP, MP4, MOV, AVI, MKV, WMV, FLV, and
-WebM files. Metadata-writing support varies by format; filesystem timestamps
-provide the fallback.
+The CLI discovers JPEG, PNG, TIFF, BMP, HEIC, MP4, MOV, AVI, MKV, WMV, FLV,
+and WebM files. Metadata-writing support varies by format and the installed
+Exiv2 build; filesystem timestamps provide the fallback.
+
+HEIC writes use ExifTool, automatically create a safety copy in `.backup`
+(or the directory selected with `--backup-dir`), and verify the embedded
+`DateTimeOriginal` value after writing. The tool never ignores metadata errors
+or removes ICC color profiles automatically.
 
 ## 🛡️ Safety
 

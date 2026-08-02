@@ -27,7 +27,7 @@ class MetadataReader:
         """
         Initialize the metadata reader.
         """
-        self.supported_image_formats = {'.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.webp'}
+        self.supported_image_formats = {'.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.webp', '.heic'}
         self.supported_video_formats = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'}
 
     def read_dates(self, file_path: Union[str, Path]) -> Dict[str, Optional[datetime]]:

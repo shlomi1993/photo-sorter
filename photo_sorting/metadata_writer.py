@@ -8,6 +8,8 @@ platforms and applications.
 import os
 import shutil
 import logging
+import json
+import subprocess
 import pyexiv2
 
 from datetime import datetime, date
@@ -39,8 +41,12 @@ class MetadataWriter:
         self.dry_run = dry_run
         self.backup = backup
         self.backup_dir = backup_dir
-        self.supported_image_formats = {'.jpg', '.jpeg', '.tiff', '.tif'}
+        self.supported_image_formats = {'.jpg', '.jpeg', '.tiff', '.tif', '.heic'}
         self.supported_video_formats = {'.mp4', '.mov', '.m4v'}
+        self.last_update_details = {
+            'embedded_metadata': False,
+            'filesystem_timestamps': False,
+        }
         if dry_run:
             logger.info("Running in DRY RUN mode - no files will be modified")
 
@@ -59,6 +65,10 @@ class MetadataWriter:
             bool: True if the update succeeds, otherwise False.
         """
         file_path = Path(file_path)
+        self.last_update_details = {
+            'embedded_metadata': False,
+            'filesystem_timestamps': False,
+        }
 
         if not file_path.exists():
             logger.error(f"File does not exist: {file_path}")
@@ -93,34 +103,44 @@ class MetadataWriter:
 
         if self.dry_run:
             logger.info(f"[DRY RUN] Would update {file_path.name}")
+            self.last_update_details = {
+                'embedded_metadata': True,
+                'filesystem_timestamps': True,
+            }
             return True
-
-        # Create backup if requested
-        if self.backup:
-            if not self._create_backup(file_path):
-                logger.error(f"Failed to create backup for {file_path}")
-                return False
 
         file_ext = file_path.suffix.lower()
 
-        success = False
+        # HEIC metadata is rewritten by an external tool, so always keep a
+        # recoverable original. Other formats retain the opt-in backup behavior.
+        if self.backup or file_ext == '.heic':
+            if not self._create_backup(file_path):
+                logger.error(f"Failed to create backup for {file_path}")
+                return False
+            if file_ext == '.heic':
+                backup_dir_name = self.backup_dir if self.backup_dir else '.backup'
+                logger.info(f"HEIC safety backup available in {backup_dir_name}/{file_path.name}")
+
+        embedded_success = False
 
         # Handle image files
         if file_ext in self.supported_image_formats:
-            success = self._update_image_dates(file_path, target_datetime)
+            embedded_success = self._update_image_dates(file_path, target_datetime)
 
         # Handle video files
         elif file_ext in self.supported_video_formats:
-            success = self._update_video_dates(file_path, target_datetime)
+            embedded_success = self._update_video_dates(file_path, target_datetime)
 
         else:
             logger.warning(f"Unsupported file format for metadata writing: {file_ext}")
 
-        # Always try to update file system timestamps as fallback
-        if self._update_file_timestamps(file_path, target_datetime):
-            success = True
+        filesystem_success = self._update_file_timestamps(file_path, target_datetime)
+        self.last_update_details = {
+            'embedded_metadata': embedded_success,
+            'filesystem_timestamps': filesystem_success,
+        }
 
-        return success
+        return embedded_success or filesystem_success
 
     def reset_file_dates_to_exif(self, file_path: Union[str, Path], metadata_reader: 'MetadataReader') -> bool:
         """
@@ -210,6 +230,9 @@ class MetadataWriter:
         # Format datetime for EXIF (YYYY:MM:DD HH:MM:SS)
         exif_datetime_str = target_datetime.strftime("%Y:%m:%d %H:%M:%S")
 
+        if file_path.suffix.lower() == '.heic':
+            return self._update_heic_with_exiftool(file_path, exif_datetime_str)
+
         success = self._update_with_pyexiv2(file_path, exif_datetime_str)
         if success:
             logger.debug(f"Successfully updated EXIF data using pyexiv2 for {file_path.name}")
@@ -217,6 +240,70 @@ class MetadataWriter:
             logger.warning(f"pyexiv2 failed to update EXIF data for {file_path.name}")
 
         return success
+
+    def _update_heic_with_exiftool(self, file_path: Path, exif_datetime_str: str) -> bool:
+        """Update HEIC EXIF dates with ExifTool and verify DateTimeOriginal."""
+        exiftool = shutil.which('exiftool')
+        if not exiftool:
+            logger.error(
+                "ExifTool is required to update embedded HEIC metadata. "
+                "Install it with 'brew install exiftool'."
+            )
+            return False
+
+        write_command = [
+            exiftool,
+            '-overwrite_original_in_place',
+            f'-EXIF:DateTimeOriginal={exif_datetime_str}',
+            f'-EXIF:CreateDate={exif_datetime_str}',
+            f'-EXIF:ModifyDate={exif_datetime_str}',
+            str(file_path),
+        ]
+
+        try:
+            result = subprocess.run(
+                write_command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as e:
+            logger.error(f"Could not run ExifTool for {file_path}: {e}")
+            return False
+
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout).strip()
+            logger.error(f"ExifTool failed to update {file_path}: {message}")
+            return False
+
+        verify_command = [
+            exiftool,
+            '-j',
+            '-EXIF:DateTimeOriginal',
+            str(file_path),
+        ]
+        try:
+            verification = subprocess.run(
+                verify_command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            metadata = json.loads(verification.stdout) if verification.returncode == 0 else []
+            actual_date = metadata[0].get('DateTimeOriginal') if metadata else None
+        except (OSError, json.JSONDecodeError, IndexError, AttributeError) as e:
+            logger.error(f"Could not verify HEIC metadata in {file_path}: {e}")
+            return False
+
+        if actual_date != exif_datetime_str:
+            logger.error(
+                f"HEIC metadata verification failed for {file_path.name}: "
+                f"expected {exif_datetime_str}, found {actual_date or 'no DateTimeOriginal'}"
+            )
+            return False
+
+        logger.info(f"Verified embedded HEIC date for {file_path.name}: {actual_date}")
+        return True
 
     def _update_with_pyexiv2(self, file_path: Path, exif_datetime_str: str) -> bool:
         """

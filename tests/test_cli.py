@@ -1,6 +1,8 @@
 from datetime import date, datetime
 
 from photo_sorting.cli import extract_date_from_filename
+from photo_sorting.metadata_reader import MetadataReader
+from photo_sorting.metadata_writer import MetadataWriter
 
 
 def test_extracts_timestamp_from_filename():
@@ -23,3 +25,8 @@ def test_extracts_timestamp_without_seconds():
 
 def test_date_only_behavior_is_unchanged():
     assert extract_date_from_filename("20260411.jpg") == date(2026, 4, 11)
+
+
+def test_heic_is_supported_by_metadata_handlers():
+    assert ".heic" in MetadataReader().supported_image_formats
+    assert ".heic" in MetadataWriter().supported_image_formats
