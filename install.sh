@@ -14,6 +14,12 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# ExifTool is a system dependency used for safe HEIC metadata writes.
+if ! command -v exiftool &> /dev/null; then
+    echo "⚠️  ExifTool is not installed. HEIC files will receive filesystem timestamps only."
+    echo "   On macOS, install it with: brew install exiftool"
+fi
+
 # Check Python version
 python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 echo "✓ Found Python $python_version"

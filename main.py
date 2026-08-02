@@ -22,6 +22,25 @@ from photo_sorting import (
 )
 
 
+def log_update_outcome(logger, writer, file_path: Path, target_date) -> bool:
+    """Log whether embedded metadata or only filesystem timestamps changed."""
+    details = writer.last_update_details
+    embedded = details['embedded_metadata']
+    filesystem = details['filesystem_timestamps']
+
+    if embedded and filesystem:
+        logger.info(f"  ✓ Updated embedded metadata and filesystem timestamps for {file_path.name} to {target_date}")
+    elif embedded:
+        logger.warning(f"  ⚠️  Updated embedded metadata for {file_path.name}, but filesystem timestamps failed")
+    else:
+        logger.warning(
+            f"  ⚠️  Embedded metadata was not updated for {file_path.name}; "
+            "filesystem timestamps only were updated"
+        )
+
+    return embedded
+
+
 def extract_date_from_whatsapp_filename(filename: str) -> datetime:
     """
     Extract date from WhatsApp filename format (IMG-YYYYMMDD-WA*).
@@ -223,7 +242,7 @@ def main():
         writer = MetadataWriter(dry_run=args.dry_run, backup=bool(args.backup_dir), backup_dir=args.backup_dir)
 
         # Process media files
-        media_extensions = {'.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp',
+        media_extensions = {'.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.heic',
                           '.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm'}
 
         if single_file:
@@ -251,6 +270,8 @@ def main():
 
         processed_count = 0
         modified_count = 0
+        embedded_modified_count = 0
+        filesystem_only_count = 0
 
         for file_path in media_files:
             logger.info(f"Processing: {file_path.name}")
@@ -283,7 +304,10 @@ def main():
                     # Update dates to the extracted WhatsApp date
                     if writer.update_dates(file_path, whatsapp_date, preserve_time=False, metadata_reader=reader):
                         modified_count += 1
-                        logger.info(f"  ✓ Updated metadata for {file_path.name} to {whatsapp_date}")
+                        if log_update_outcome(logger, writer, file_path, whatsapp_date):
+                            embedded_modified_count += 1
+                        else:
+                            filesystem_only_count += 1
                     else:
                         logger.error(f"  ✗ Failed to update metadata for {file_path.name}")
                 elif args.by_name:
@@ -298,7 +322,10 @@ def main():
                     # Update dates to the extracted date
                     if writer.update_dates(file_path, filename_date, preserve_time=False, metadata_reader=reader):
                         modified_count += 1
-                        logger.info(f"  ✓ Updated metadata for {file_path.name} to {filename_date}")
+                        if log_update_outcome(logger, writer, file_path, filename_date):
+                            embedded_modified_count += 1
+                        else:
+                            filesystem_only_count += 1
                     else:
                         logger.error(f"  ✗ Failed to update metadata for {file_path.name}")
                 else:
@@ -320,7 +347,10 @@ def main():
                     if needs_update:
                         if writer.update_dates(file_path, expected_date, preserve_time=True, metadata_reader=reader):
                             modified_count += 1
-                            logger.info(f"  ✓ Updated metadata for {file_path.name}")
+                            if log_update_outcome(logger, writer, file_path, expected_date):
+                                embedded_modified_count += 1
+                            else:
+                                filesystem_only_count += 1
                         else:
                             logger.error(f"  ✗ Failed to update metadata for {file_path.name}")
                     else:
@@ -336,6 +366,8 @@ def main():
         logger.info(f"\nProcessing complete:")
         logger.info(f"  Files processed: {processed_count}")
         logger.info(f"  Files modified: {modified_count}")
+        logger.info(f"  Embedded metadata updated: {embedded_modified_count}")
+        logger.info(f"  Filesystem timestamps only: {filesystem_only_count}")
 
         if args.dry_run:
             logger.info("  (Dry run - no actual changes made)")
