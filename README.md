@@ -6,6 +6,7 @@ explicit dates, filenames, or existing EXIF metadata.
 ## ✨ Features
 
 - Process a directory or a single media file.
+- Automatically detect camera (DCIM) and WhatsApp filenames; skip other names.
 - Read dates from event folders such as `2025.04.11 - Event Name`.
 - Read dates and times from filenames such as:
   - `20260411_114806.jpg`
@@ -47,11 +48,29 @@ python -m pip install -e ".[dev]"
 
 ## 🚀 Usage
 
-The positional argument can be an event directory or one supported media file:
+The positional argument can be a directory or one supported media file:
 
 ```bash
 photo-sorting PATH [OPTIONS]
 ```
+
+### Automatically handle camera and WhatsApp photos
+
+```bash
+photo-sorting "/path/to/photos"
+photo-sorting "/path/to/IMG-20250120-WA0011.jpg"
+photo-sorting "/path/to/photos" --dry-run
+```
+
+The default mode recognizes WhatsApp image and video names such as
+`IMG-20250120-WA0011.jpg` and `VID-20260727-WA0017.mp4`
+and camera names such as `20260411_114806.jpg`, `IMG_20260411_114806.jpg`,
+`DSC_20260411_114806.jpg`, and `PXL_20260411_114806123.jpg`, including
+numeric duplicate suffixes such as `(0)`. Camera timestamps retain their time;
+WhatsApp date-only names use noon. Existing dates are replaced by the filename
+date. Unrecognized names and invalid dates or times are skipped, even in dated
+event folders. Files directly inside the directory are processed (no recursion).
+Camera names such as `IMG_0001.jpg` contain no date and are skipped.
 
 ### Parse the date and time from filenames
 
@@ -74,7 +93,7 @@ photo-sorting "/path/to/photos" --by-name --dry-run --verbose
 For a directory named `2025.04.11 - Event Name`:
 
 ```bash
-photo-sorting "/path/to/2025.04.11 - Event Name"
+photo-sorting "/path/to/2025.04.11 - Event Name" --folder-date
 ```
 
 This changes the date while preserving an existing time when possible.
@@ -91,7 +110,8 @@ photo-sorting "/path/to/photos" --date 2025.04.11
 photo-sorting "/path/to/photos" --whatsapp
 ```
 
-This supports names such as `IMG-20250120-WA0011.jpg`. WhatsApp mode stops if
+This supports image names such as `IMG-20250120-WA0011.jpg` and video names
+such as `VID-20260727-WA0017.mp4`. WhatsApp mode stops if
 existing EXIF date-taken metadata is found.
 
 ### Reset filesystem dates from EXIF
@@ -112,7 +132,7 @@ photo-sorting "/path/to/photos" --by-name --backup-dir originals
 | --- | --- |
 | `--date`, `-d` | Use an explicit date in `YYYY.MM.DD` format |
 | `--by-name` | Parse an individual date, and time when available, from each filename |
-| `--whatsapp` | Process `IMG-YYYYMMDD-WA*` filenames |
+| `--whatsapp` | Process `IMG/VID-YYYYMMDD-WA*` filenames |
 | `--reset` | Reset filesystem timestamps from existing EXIF data |
 | `--dry-run` | Report changes without modifying files |
 | `--verbose`, `-v` | Enable verbose logging |

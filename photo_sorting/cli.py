@@ -41,9 +41,9 @@ def log_update_outcome(logger, writer, file_path: Path, target_date) -> bool:
     return embedded
 
 
-def extract_date_from_whatsapp_filename(filename: str) -> datetime:
+def extract_date_from_whatsapp_filename(filename: str) -> Optional[date]:
     """
-    Extract date from WhatsApp filename format (IMG-YYYYMMDD-WA*).
+    Extract date from WhatsApp filename format (IMG/VID-YYYYMMDD-WA*).
 
     Args:
         filename (str): The filename to parse.
@@ -51,8 +51,8 @@ def extract_date_from_whatsapp_filename(filename: str) -> datetime:
     Returns:
         Optional[date]: The extracted date, or None if parsing fails.
     """
-    # Match WhatsApp pattern: IMG-YYYYMMDD-WA*
-    match = re.match(r'IMG-(\d{4})(\d{2})(\d{2})-WA.*', filename)
+    # Match WhatsApp image and video names.
+    match = re.match(r'(?:IMG|VID)-(\d{4})(\d{2})(\d{2})-WA.*', filename, re.IGNORECASE)
     if match:
         year, month, day = match.groups()
         try:
@@ -127,21 +127,46 @@ def extract_date_from_filename(filename: str) -> Optional[Union[date, datetime]]
     return None
 
 
+def extract_date_from_camera_or_whatsapp_filename(filename: str) -> Optional[Union[date, datetime]]:
+    """Recognize WhatsApp dates and camera timestamps, without guessing other names."""
+    stem = Path(filename).stem
+    duplicate_suffix = r"(?:\(\d+\)| \(\d+\))?"
+    whatsapp = re.fullmatch(
+        r"(?:IMG|VID)-(\d{8})-WA\d+" + duplicate_suffix, stem, re.IGNORECASE
+    )
+    camera = re.fullmatch(
+        r"(?:(?:IMG|DSC|DSCF|PXL)[_-])?(\d{8})[_-](\d{6}(?:\d{3})?|\d{4})"
+        r"(?:_HDR|_PORTRAIT)?" + duplicate_suffix,
+        stem, re.IGNORECASE,
+    )
+    try:
+        if whatsapp:
+            return datetime.strptime(whatsapp.group(1), "%Y%m%d").date()
+        if camera:
+            date_part, time_part = camera.groups()
+            time_part = time_part[:6]
+            fmt = "%Y%m%d%H%M%S" if len(time_part) == 6 else "%Y%m%d%H%M"
+            return datetime.strptime(date_part + time_part, fmt)
+    except ValueError:
+        return None
+    return None
+
+
 def main():
     """
     Main entry point for the photo sorting tool.
     """
-    parser = argparse.ArgumentParser(description="Fix photo/video metadata dates based on directory naming convention")
+    parser = argparse.ArgumentParser(description="Fix camera and WhatsApp photo dates from filenames")
     parser.add_argument(
         "path",
         type=str,
-        help="Path to the event folder containing photos/videos or a single file"
+        help="Path to a directory containing photos/videos or a single file"
     )
     parser.add_argument(
         "--date",
         "-d",
         type=str,
-        help="Expected date in YYYY.MM.DD format (if not provided, will extract from folder name)"
+        help="Set an explicit date in YYYY.MM.DD format"
     )
     parser.add_argument(
         "--dry-run",
@@ -167,7 +192,7 @@ def main():
     parser.add_argument(
         "--whatsapp",
         action="store_true",
-        help="Process WhatsApp files (IMG-YYYYMMDD-WA*) and extract dates from filenames. Stops if EXIF data exists."
+        help="Process WhatsApp files (IMG/VID-YYYYMMDD-WA*) and extract dates from filenames. Stops if EXIF data exists."
     )
     parser.add_argument(
         "--by-name",
@@ -175,7 +200,14 @@ def main():
         help="Parse date from filename and set as file taken, creation, and modification dates. Skips files with unparseable names."
     )
 
+    parser.add_argument(
+        "--folder-date",
+        action="store_true",
+        help="Use the event-folder date instead of detecting camera and WhatsApp filenames"
+    )
+
     args = parser.parse_args()
+    auto_by_name = not any((args.reset, args.whatsapp, args.by_name, args.date, args.folder_date))
 
     # Setup logging
     logger = setup_logger(verbose=args.verbose)
@@ -203,7 +235,7 @@ def main():
             sys.exit(1)
 
         # Only standardize folder names when processing directories
-        if single_file is None:
+        if single_file is None and args.folder_date:
             # Check if folder name needs standardization (YYYY.M.D -> YYYY.MM.DD)
             standardized_name = standardize_folder_name(folder_path.name)
             if standardized_name:
@@ -220,8 +252,7 @@ def main():
                         sys.exit(1)
                 else:
                     logger.info(f"[DRY RUN] Would rename folder to: {new_folder_path}")
-                    # For dry run, use the new path for further processing
-                    folder_path = new_folder_path
+                    # Keep the existing path so dry-run discovery can read the files.
 
         # Extract or use provided date (only needed for standard modes)
         expected_date = None
@@ -234,6 +265,8 @@ def main():
         elif args.by_name:
             # In by-name mode, we extract dates from individual filenames
             logger.info("By-name mode: Will extract dates from filenames")
+        elif auto_by_name:
+            logger.info("Automatic mode: Will extract camera and WhatsApp dates from filenames")
         elif args.date:
             expected_date = datetime.strptime(args.date, "%Y.%m.%d").date()
             logger.info(f"Using provided date: {expected_date}")
@@ -263,10 +296,10 @@ def main():
                 sys.exit(1)
         else:
             # Directory mode - find all media files
-            media_files = []
-            for ext in media_extensions:
-                media_files.extend(folder_path.glob(f"*{ext}"))
-                media_files.extend(folder_path.glob(f"*{ext.upper()}"))
+            media_files = sorted(
+                file for file in folder_path.iterdir()
+                if file.is_file() and file.suffix.lower() in media_extensions
+            )
 
         if not media_files:
             if single_file:
@@ -298,7 +331,7 @@ def main():
                     whatsapp_date = extract_date_from_whatsapp_filename(file_path.name)
                     if not whatsapp_date:
                         logger.error(f"  ✗ Could not extract date from WhatsApp filename: {file_path.name}")
-                        logger.error("Expected format: IMG-YYYYMMDD-WA*")
+                        logger.error("Expected format: IMG/VID-YYYYMMDD-WA*")
                         sys.exit(1)
 
                     logger.info(f"  Extracted date from filename: {whatsapp_date}")
@@ -319,9 +352,11 @@ def main():
                             filesystem_only_count += 1
                     else:
                         logger.error(f"  ✗ Failed to update metadata for {file_path.name}")
-                elif args.by_name:
-                    # By-name mode: Extract date from filename and update metadata
-                    filename_date = extract_date_from_filename(file_path.name)
+                elif args.by_name or auto_by_name:
+                    # Default mode only accepts recognized camera and WhatsApp names.
+                    parse_filename = (extract_date_from_camera_or_whatsapp_filename
+                                      if auto_by_name else extract_date_from_filename)
+                    filename_date = parse_filename(file_path.name)
                     if not filename_date:
                         logger.info(f"  ⚠️  Could not extract date from filename: {file_path.name} - skipping")
                         continue
